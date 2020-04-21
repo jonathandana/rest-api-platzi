@@ -2,19 +2,51 @@
 
 header( 'Content-Type: application/json' );
 
-$user = array_key_exists('PHP_AUTH_USER', $_SERVER) ? $_SERVER['PHP_AUTH_USER'] : '';
-$pwd = array_key_exists('PHP_AUTH_PW', $_SERVER) ? $_SERVER['PHP_AUTH_PW'] : '';
+//$user = array_key_exists('PHP_AUTH_USER', $_SERVER) ? $_SERVER['PHP_AUTH_USER'] : '';
+//$pwd = array_key_exists('PHP_AUTH_PW', $_SERVER) ? $_SERVER['PHP_AUTH_PW'] : '';
+//
+//if ( $user !== 'mauro' || $pwd !== '1234' ) {
+//    header('Status-Code: 403');
+//
+//    echo json_encode(
+//        [
+//            'error' => "Usuario y/o password incorrectos",
+//        ]
+//    );
+//
+//    die;
+//}
 
-if ( $user !== 'mauro' || $pwd !== '1234' ) {
-	header('Status-Code: 403');
+if (
+	!array_key_exists('HTTP_X_HASH', $_SERVER) ||
+	!array_key_exists('HTTP_X_TIMESTAMP', $_SERVER) ||
+	!array_key_exists('HTTP_X_UID', $_SERVER)
+	) {
+		header( 'Status-Code: 403' );
 
-	echo json_encode(
-		[ 
-			'error' => "Usuario y/o password incorrectos", 
-		]
-	);
+		echo json_encode(
+			[
+				'error' => "No autorizado",
+			]
+		);
 
-	die;
+		die;
+	}
+
+list( $hash, $uid, $timestamp ) = [ $_SERVER['HTTP_X_HASH'], $_SERVER['HTTP_X_UID'], $_SERVER['HTTP_X_TIMESTAMP'] ];
+$secret = 'Sh!! No se lo cuentes a nadie!';
+$newHash = sha1($uid.$timestamp.$secret);
+
+if ( $newHash !== $hash ) {
+	header( 'Status-Code: 403' );
+
+		echo json_encode(
+			[
+				'error' => "No autorizado. Hash esperado: $newHash, hash recibido: $hash",
+			]
+		);
+
+		die;
 }
 
 $allowedResourceTypes = [
@@ -28,10 +60,10 @@ if ( !in_array( $resourceType, $allowedResourceTypes ) ) {
 	header( 'Status-Code: 400' );
 	echo json_encode(
 		[
-			'error' => "$resourceType is un unkown",
+			'error' => "Resource type '$resourceType' is un unkown",
 		]
 	);
-	
+
 	die;
 }
 
@@ -91,7 +123,7 @@ switch ( strtoupper( $method ) ) {
 		}
 
 		die;
-		
+
 		break;
 	case 'POST':
 		$json = file_get_contents( 'php://input' );
@@ -103,7 +135,7 @@ switch ( strtoupper( $method ) ) {
 	case 'PUT':
 		if ( !empty($resourceId) && array_key_exists( $resourceId, $books ) ) {
 			$json = file_get_contents( 'php://input' );
-			
+
 			$books[ $resourceId ] = json_decode( $json, true );
 
 			echo $resourceId;
